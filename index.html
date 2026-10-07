@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Registrar — Student Information Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #10142b;
+    --navy-light: #1b2148;
+    --parchment: #f3ead9;
+    --parchment-dim: #e7dcc4;
+    --brass: #c9a24a;
+    --brass-dark: #a9832f;
+    --ink: #201a10;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--navy);
+    color: var(--parchment);
+    font-family: "Inter", sans-serif;
+  }
+  h1, h2, h3, .display { font-family: "Fraunces", serif; }
+  header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 20px 34px; border-bottom: 2px solid var(--brass);
+    background: var(--navy-light);
+  }
+  header h1 { margin: 0; font-size: 22px; color: var(--brass); }
+  header .sub { font-size: 12px; opacity: 0.7; font-family: "IBM Plex Mono", monospace; }
+  main { padding: 30px; max-width: 1100px; margin: 0 auto; }
+  .gauge-panel {
+    display: flex; align-items: center; gap: 28px; background: var(--navy-light);
+    border: 1px solid #3a3f66; border-radius: 12px; padding: 20px 28px; margin-bottom: 24px;
+  }
+  .gauge-panel .stat-text { display: flex; gap: 30px; flex-wrap: wrap; }
+  .gauge-panel .stat-text div { text-align: center; }
+  .gauge-panel .stat-text .value { font-size: 22px; font-weight: 700; color: var(--brass); }
+  .gauge-panel .stat-text .label { font-size: 11px; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
+  #gpaGaugeArc {
+    stroke-dasharray: 251.2;
+    stroke-dashoffset: 251.2;
+    transition: stroke-dashoffset 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+  .view-toggle button {
+    background: none; border: 1px solid var(--brass); color: var(--parchment);
+    padding: 8px 16px; cursor: pointer; font-family: "IBM Plex Mono", monospace; font-size: 12px;
+  }
+  .view-toggle button.active { background: var(--brass); color: var(--ink); font-weight: 700; }
+  .view-toggle button:first-child { border-radius: 6px 0 0 6px; }
+  .view-toggle button:last-child { border-radius: 0 6px 6px 0; border-left: none; }
+
+  .actions button {
+    background: var(--brass); color: var(--ink); border: none; padding: 9px 16px;
+    border-radius: 6px; font-weight: 700; cursor: pointer; margin-left: 8px; font-family: "Inter", sans-serif;
+  }
+  .actions button.secondary { background: none; border: 1px solid var(--brass); color: var(--parchment); }
+  .actions button:hover { opacity: 0.9; }
+
+  /* Card catalog view */
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; }
+  .student-card {
+    background: var(--navy-light); border: 1px solid #3a3f66; border-radius: 10px;
+    padding: 18px; position: relative; cursor: pointer; transition: transform 0.15s;
+  }
+  .student-card:hover { transform: translateY(-3px); border-color: var(--brass); }
+  .student-card h3 { margin: 0 0 4px; font-size: 17px; color: var(--parchment); }
+  .student-card .id { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: var(--brass); }
+  .student-card .meta { font-size: 12px; opacity: 0.75; margin-top: 8px; }
+  .gpa-badge {
+    position: absolute; top: 14px; right: 14px; width: 42px; height: 42px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px; border: 2px solid var(--brass); background: var(--navy);
+  }
+
+  /* Ledger view */
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid #3a3f66; }
+  th { color: var(--brass); font-family: "IBM Plex Mono", monospace; font-size: 11px; text-transform: uppercase; }
+  tr:hover { background: rgba(201,162,74,0.06); cursor: pointer; }
+
+  /* Modal */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    align-items: center; justify-content: center; z-index: 50;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--parchment); color: var(--ink); border-radius: 10px; padding: 28px;
+    width: 420px; max-width: 90vw; border: 3px solid var(--brass); position: relative;
+  }
+  .modal h2 { margin-top: 0; color: var(--brass-dark); }
+  .modal label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; margin-top: 12px; }
+  .modal input, .modal select {
+    width: 100%; padding: 9px; border-radius: 6px; border: 1px solid #c9b98a; font-family: "Inter", sans-serif;
+  }
+  .modal-actions { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; }
+  .modal-actions button {
+    padding: 9px 18px; border-radius: 6px; border: none; cursor: pointer; font-weight: 700;
+  }
+  .modal-actions .save { background: var(--brass-dark); color: white; }
+  .modal-actions .cancel { background: #ddd; }
+  .modal-actions .delete { background: #a33; color: white; margin-right: auto; }
+
+  /* Rubber stamp animation */
+  .stamp {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(3) rotate(-15deg);
+    font-family: "Fraunces", serif; font-size: 46px; font-weight: 700; color: #a33;
+    border: 6px solid #a33; padding: 10px 28px; border-radius: 12px; opacity: 0;
+    pointer-events: none; z-index: 100; text-transform: uppercase; letter-spacing: 4px;
+  }
+  .stamp.animate {
+    animation: stampIn 1.4s ease-out forwards;
+  }
+  @keyframes stampIn {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(4) rotate(-15deg); }
+    35% { opacity: 1; transform: translate(-50%, -50%) scale(0.9) rotate(-15deg); }
+    50% { transform: translate(-50%, -50%) scale(1.05) rotate(-15deg); }
+    65% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(-15deg); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1) rotate(-15deg); }
+  }
+
+  .empty-state { text-align: center; padding: 60px 20px; opacity: 0.6; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>The Registrar</h1>
+    <div class="sub">Student Information & Records System</div>
+  </div>
+  <div class="sub" id="studentCount">0 students on file</div>
+</header>
+
+<main>
+  <div class="gauge-panel">
+    <svg width="90" height="90" viewBox="0 0 90 90">
+      <circle cx="45" cy="45" r="40" fill="none" stroke="#2a2f55" stroke-width="8" />
+      <circle id="gpaGaugeArc" cx="45" cy="45" r="40" fill="none" stroke="#c9a24a" stroke-width="8"
+        stroke-linecap="round" transform="rotate(-90 45 45)" />
+      <text id="gpaGaugeText" x="45" y="51" text-anchor="middle" font-family="IBM Plex Mono, monospace"
+        font-size="16" fill="#f3ead9">0.00</text>
+    </svg>
+    <div class="stat-text">
+      <div><div class="value" id="statAvgGpa">0.00</div><div class="label">Average GPA</div></div>
+      <div><div class="value" id="statActive">0</div><div class="label">Active</div></div>
+      <div><div class="value" id="statOnLeave">0</div><div class="label">On Leave</div></div>
+      <div><div class="value" id="statGraduated">0</div><div class="label">Graduated</div></div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="view-toggle">
+      <button id="cardViewBtn" class="active">Card Catalog</button>
+      <button id="ledgerViewBtn">Ledger</button>
+    </div>
+    <div class="actions">
+      <button class="secondary" id="exportCsvBtn">Export CSV</button>
+      <button id="addStudentBtn">+ New Student</button>
+    </div>
+  </div>
+
+  <div id="cardView" class="card-grid"></div>
+  <table id="ledgerView" style="display:none;">
+    <thead>
+      <tr><th>ID</th><th>Name</th><th>Program</th><th>Year</th><th>GPA</th><th>Status</th></tr>
+    </thead>
+    <tbody id="ledgerBody"></tbody>
+  </table>
+
+  <div id="emptyState" class="empty-state" style="display:none;">
+    <h2>No students yet</h2>
+    <p>Click "+ New Student" to add your first record.</p>
+  </div>
+</main>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2 id="modalTitle">New Student</h2>
+    <input type="hidden" id="studentId" />
+    <label>Full Name</label>
+    <input id="fullName" placeholder="e.g. Abebe Kebede" />
+    <label>Student ID</label>
+    <input id="studentIdField" placeholder="e.g. DTU-2024-041" />
+    <label>Program</label>
+    <input id="program" placeholder="e.g. Computer Science" />
+    <label>Year</label>
+    <select id="year">
+      <option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option>
+    </select>
+    <label>GPA (0.0 - 4.0)</label>
+    <input id="gpa" type="number" step="0.01" min="0" max="4" placeholder="e.g. 3.45" />
+    <label>Status</label>
+    <select id="status">
+      <option>Active</option><option>On Leave</option><option>Graduated</option>
+    </select>
+    <div class="modal-actions">
+      <button class="delete" id="deleteBtn" style="display:none;">Delete</button>
+      <button class="cancel" id="cancelBtn">Cancel</button>
+      <button class="save" id="saveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="stamp" id="stamp">Saved</div>
+
+<script>
+const STORAGE_KEY = "the_registrar_students";
+
+function seedStudents() {
+  return [
+    { id: "DTU-2024-001", fullName: "Abebe Kebede", program: "Computer Science", year: "3rd Year", gpa: 3.72, status: "Active" },
+    { id: "DTU-2024-002", fullName: "Selamawit Tesfaye", program: "Software Engineering", year: "2nd Year", gpa: 3.91, status: "Active" },
+    { id: "DTU-2024-003", fullName: "Dawit Alemu", program: "Information Systems", year: "4th Year", gpa: 3.15, status: "Active" },
+    { id: "DTU-2024-004", fullName: "Meseret Girma", program: "Computer Science", year: "1st Year", gpa: 3.58, status: "Active" },
+    { id: "DTU-2024-005", fullName: "Yared Solomon", program: "Software Engineering", year: "3rd Year", gpa: 2.89, status: "On Leave" },
+    { id: "DTU-2024-006", fullName: "Rahel Mulugeta", program: "Data Science", year: "2nd Year", gpa: 3.99, status: "Active" },
+    { id: "DTU-2024-007", fullName: "Biniam Tadesse", program: "Computer Science", year: "4th Year", gpa: 3.34, status: "Graduated" },
+    { id: "DTU-2024-008", fullName: "Hanna Fikru", program: "Information Systems", year: "1st Year", gpa: 3.05, status: "Active" },
+    { id: "DTU-2024-009", fullName: "Tewodros Bekele", program: "Software Engineering", year: "3rd Year", gpa: 2.67, status: "Active" },
+    { id: "DTU-2024-010", fullName: "Lidya Assefa", program: "Data Science", year: "2nd Year", gpa: 3.81, status: "Active" },
+  ];
+}
+
+function loadStudents() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) return JSON.parse(raw);
+  const seeded = seedStudents();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
+  return seeded;
+}
+
+function saveStudents(students) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(students));
+}
+
+let students = loadStudents();
+let currentView = "card";
+
+function gpaColor(gpa) {
+  if (gpa >= 3.5) return "#5edeb2";
+  if (gpa >= 3.0) return "#c9a24a";
+  return "#e08a6a";
+}
+
+function updateGauge() {
+  const avgGpa = students.length ? students.reduce((sum, s) => sum + s.gpa, 0) / students.length : 0;
+  const circumference = 251.2;
+  const fraction = Math.min(avgGpa / 4, 1);
+  const offset = circumference * (1 - fraction);
+
+  document.getElementById("gpaGaugeArc").style.strokeDashoffset = offset;
+  document.getElementById("gpaGaugeText").textContent = avgGpa.toFixed(2);
+  document.getElementById("statAvgGpa").textContent = avgGpa.toFixed(2);
+  document.getElementById("statActive").textContent = students.filter((s) => s.status === "Active").length;
+  document.getElementById("statOnLeave").textContent = students.filter((s) => s.status === "On Leave").length;
+  document.getElementById("statGraduated").textContent = students.filter((s) => s.status === "Graduated").length;
+}
+
+function render() {
+  document.getElementById("studentCount").textContent = `${students.length} students on file`;
+  document.getElementById("emptyState").style.display = students.length === 0 ? "block" : "none";
+
+  updateGauge();
+  if (currentView === "card") renderCardView();
+  else renderLedgerView();
+}
+
+function renderCardView() {
+  const container = document.getElementById("cardView");
+  container.innerHTML = "";
+  students.forEach((s) => {
+    const card = document.createElement("div");
+    card.className = "student-card";
+    card.innerHTML = `
+      <div class="gpa-badge" style="border-color:${gpaColor(s.gpa)}; color:${gpaColor(s.gpa)}">${s.gpa.toFixed(2)}</div>
+      <h3>${s.fullName}</h3>
+      <div class="id">${s.id}</div>
+      <div class="meta">${s.program} • ${s.year}</div>
+      <div class="meta">${s.status}</div>
+    `;
+    card.onclick = () => openModal(s);
+    container.appendChild(card);
+  });
+}
+
+function renderLedgerView() {
+  const tbody = document.getElementById("ledgerBody");
+  tbody.innerHTML = "";
+  students.forEach((s) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${s.id}</td><td>${s.fullName}</td><td>${s.program}</td>
+      <td>${s.year}</td><td style="color:${gpaColor(s.gpa)}">${s.gpa.toFixed(2)}</td><td>${s.status}</td>
+    `;
+    tr.onclick = () => openModal(s);
+    tbody.appendChild(tr);
+  });
+}
+
+function openModal(student) {
+  document.getElementById("modalTitle").textContent = student ? "Edit Student" : "New Student";
+  document.getElementById("studentId").value = student ? student.id : "";
+  document.getElementById("fullName").value = student ? student.fullName : "";
+  document.getElementById("studentIdField").value = student ? student.id : "";
+  document.getElementById("studentIdField").disabled = !!student;
+  document.getElementById("program").value = student ? student.program : "";
+  document.getElementById("year").value = student ? student.year : "1st Year";
+  document.getElementById("gpa").value = student ? student.gpa : "";
+  document.getElementById("status").value = student ? student.status : "Active";
+  document.getElementById("deleteBtn").style.display = student ? "inline-block" : "none";
+  document.getElementById("modalOverlay").classList.add("open");
+}
+
+function closeModal() {
+  document.getElementById("modalOverlay").classList.remove("open");
+}
+
+function playStamp(text) {
+  const stamp = document.getElementById("stamp");
+  stamp.textContent = text;
+  stamp.classList.remove("animate");
+  void stamp.offsetWidth; // restart animation
+  stamp.classList.add("animate");
+}
+
+document.getElementById("cardViewBtn").onclick = () => {
+  currentView = "card";
+  document.getElementById("cardViewBtn").classList.add("active");
+  document.getElementById("ledgerViewBtn").classList.remove("active");
+  document.getElementById("cardView").style.display = "grid";
+  document.getElementById("ledgerView").style.display = "none";
+  render();
+};
+
+document.getElementById("ledgerViewBtn").onclick = () => {
+  currentView = "ledger";
+  document.getElementById("ledgerViewBtn").classList.add("active");
+  document.getElementById("cardViewBtn").classList.remove("active");
+  document.getElementById("cardView").style.display = "none";
+  document.getElementById("ledgerView").style.display = "table";
+  render();
+};
+
+document.getElementById("addStudentBtn").onclick = () => openModal(null);
+document.getElementById("cancelBtn").onclick = closeModal;
+
+document.getElementById("saveBtn").onclick = () => {
+  const existingId = document.getElementById("studentId").value;
+  const fullName = document.getElementById("fullName").value.trim();
+  const id = document.getElementById("studentIdField").value.trim();
+  const program = document.getElementById("program").value.trim();
+  const year = document.getElementById("year").value;
+  const gpa = parseFloat(document.getElementById("gpa").value);
+  const status = document.getElementById("status").value;
+
+  if (!fullName || !id || !program || isNaN(gpa)) {
+    alert("Please fill in all fields with a valid GPA.");
+    return;
+  }
+
+  if (existingId) {
+    const idx = students.findIndex((s) => s.id === existingId);
+    students[idx] = { ...students[idx], fullName, program, year, gpa, status };
+  } else {
+    if (students.some((s) => s.id === id)) {
+      alert("A student with this ID already exists.");
+      return;
+    }
+    students.push({ id, fullName, program, year, gpa, status });
+  }
+
+  saveStudents(students);
+  closeModal();
+  render();
+  playStamp(existingId ? "Updated" : "Enrolled");
+};
+
+document.getElementById("deleteBtn").onclick = () => {
+  const existingId = document.getElementById("studentId").value;
+  if (!confirm("Remove this student record?")) return;
+  students = students.filter((s) => s.id !== existingId);
+  saveStudents(students);
+  closeModal();
+  render();
+  playStamp("Removed");
+};
+
+document.getElementById("exportCsvBtn").onclick = () => {
+  const headers = ["ID", "Full Name", "Program", "Year", "GPA", "Status"];
+  const rows = students.map((s) => [s.id, s.fullName, s.program, s.year, s.gpa, s.status]);
+  const csv = [headers, ...rows].map((r) => r.map((v) => `"${v}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "the-registrar-students.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+render();
+</script>
+</body>
+</html>
